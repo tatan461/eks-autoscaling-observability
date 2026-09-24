@@ -6,21 +6,24 @@ WORKDIR /app
 RUN python -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
-# Instalar dependencias de la app
+# Instalar dependencias
 COPY requirements.txt .
 RUN pip install --no-cache-dir --upgrade pip \
     && pip install --no-cache-dir -r requirements.txt
 
-# Stage final: imagen mínima
+# Stage final: imagen mínima sin herramientas de build
 FROM python:3.11-slim
 
 WORKDIR /app
 
-# Usar solo el venv creado, sin site-packages global
+# Copiar solo el venv
 ENV PATH="/opt/venv/bin:$PATH"
 COPY --from=builder /opt/venv /opt/venv
 
-# Copiar solo el código de la aplicación
+# Eliminar pip, setuptools y wheel del runtime
+RUN pip uninstall -y pip setuptools wheel
+
+# Copiar código de la aplicación
 COPY src/ .
 
 # Usuario no privilegiado
