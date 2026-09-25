@@ -1,324 +1,329 @@
-<h1 align="center">Kubernetes Cluster on Amazon EKS with Autoscaling & Observability</h1>
+<div align="center">
 
-<p align="center">
-<a href="https://aws.amazon.com/eks/">
-<img src="https://img.shields.io/badge/Cloud-AWS-232F3E?style=flat-square&logo=amazonaws&logoColor=FF9900" alt="AWS">
-</a>
-<a href="https://kubernetes.io/">
-<img src="https://img.shields.io/badge/Orchestration-Kubernetes-326CE5?style=flat-square&logo=kubernetes&logoColor=white" alt="Kubernetes">
-</a>
-<a href="https://www.docker.com/">
-<img src="https://img.shields.io/badge/Container-Docker-2496ED?style=flat-square&logo=docker&logoColor=white" alt="Docker">
-</a>
-<a href="https://github.com/features/actions">
-<img src="https://img.shields.io/badge/CI%2FCD-GitHub_Actions-2088FF?style=flat-square&logo=github-actions&logoColor=white" alt="GitHub Actions">
-</a>
-<a href="https://www.terraform.io/">
-<img src="https://img.shields.io/badge/IaC-Terraform-623CE4?style=flat-square&logo=terraform&logoColor=white" alt="Terraform">
-</a>
-<a href="https://prometheus.io/">
-<img src="https://img.shields.io/badge/Monitoring-Prometheus-E6522C?style=flat-square&logo=prometheus&logoColor=white" alt="Prometheus">
-</a>
-<a href="https://grafana.com/">
-<img src="https://img.shields.io/badge/Observability-Grafana-F46800?style=flat-square&logo=grafana&logoColor=white" alt="Grafana">
-</a>
-</p>
+# Kubernetes Cluster on Amazon EKS with Autoscaling & Observability
 
-<p align="center">
-<a href="#overview">Overview</a> •
-<a href="#architecture">Architecture</a> •
-<a href="#features">Features</a> •
-<a href="#tech-stack">Tech Stack</a> •
-<a href="#getting-started">Getting Started</a> •
-<a href="#deployment">Deployment</a> •
-<a href="#monitoring--observability">Monitoring</a> •
-<a href="#testing-autoscaling">Testing</a> •
-<a href="#cleanup">Cleanup</a> •
-<a href="#lessons-learned">Lessons Learned</a>
-</p>
+**Production-ready Kubernetes cluster with automated CI/CD, horizontal pod autoscaling, and full observability using Prometheus and Grafana.**
 
-Overview
-Production-ready Kubernetes cluster on Amazon EKS with automated CI/CD, horizontal pod autoscaling, and full observability using Prometheus + Grafana.
+[Architecture](#architecture) · [Features](#features) · [Tech Stack](#tech-stack) · [Deployment](#deployment) · [Monitoring](#monitoring) · [Testing](#testing)
 
-The application deploys automatically on every push to main, with Docker image security scanning and real-time metrics dashboards.
+![AWS](https://img.shields.io/badge/Cloud-AWS-232F3E?logo=amazonaws&logoColor=white)
+![Kubernetes](https://img.shields.io/badge/Orchestration-Kubernetes-326CE5?logo=kubernetes&logoColor=white)
+![Docker](https://img.shields.io/badge/Container-Docker-2496ED?logo=docker&logoColor=white)
+![GitHub Actions](https://img.shields.io/badge/CI%2FCD-GitHub_Actions-2088FF?logo=github-actions&logoColor=white)
+![Terraform](https://img.shields.io/badge/IaC-Terraform-623CE4?logo=terraform&logoColor=white)
+![Prometheus](https://img.shields.io/badge/Monitoring-Prometheus-E6522C?logo=prometheus&logoColor=white)
+![Grafana](https://img.shields.io/badge/Observability-Grafana-F46800?logo=grafana&logoColor=white)
 
-Live Demo: [Add your LoadBalancer URL here]
+</div>
 
-Architecture
-text
-┌─────────────────────────────────────────────────────────────────┐
-│                         AWS Cloud                                │
-│                                                                  │
-│  ┌──────────────────────────────────────────────────────────┐   │
-│  │                    Amazon EKS Cluster                     │   │
-│  │                                                            │   │
-│  │  ┌────────────────────────────────────────────────────┐   │   │
-│  │  │                 Kubernetes Namespace                │   │   │
-│  │  │                                                      │   │   │
-│  │  │  ┌──────────────┐    ┌──────────────┐              │   │   │
-│  │  │  │   Pod 1      │    │   Pod 2      │  ...         │   │   │
-│  │  │  │  (my-app)    │    │  (my-app)    │              │   │   │
-│  │  │  └──────────────┘    └──────────────┘              │   │   │
-│  │  │         ▲                    ▲                      │   │   │
-│  │  │         │                    │                      │   │   │
-│  │  │         └────────────────────┘                      │   │   │
-│  │  │              Horizontal Pod Autoscaler (HPA)        │   │   │
-│  │  │              Target CPU: 50%                        │   │   │
-│  │  └────────────────────────────────────────────────────┘   │   │
-│  │                                                            │   │
-│  │  ┌────────────────────────────────────────────────────┐   │   │
-│  │  │              Monitoring Namespace                   │   │   │
-│  │  │  ┌──────────────┐    ┌──────────────┐              │   │   │
-│  │  │  │  Prometheus  │    │   Grafana    │              │   │   │
-│  │  │  │   (Metrics)  │    │ (Dashboards) │              │   │   │
-│  │  │  └──────────────┘    └──────────────┘              │   │   │
-│  │  └────────────────────────────────────────────────────┘   │   │
-│  └──────────────────────────────────────────────────────────┘   │
-│                                                                  │
-│  ┌──────────────────┐    ┌──────────────────┐                  │
-│  │   Amazon ECR     │    │  ALB / NLB       │                  │
-│  │  (Docker Images) │    │  (LoadBalancer)  │                  │
-│  └──────────────────┘    └──────────────────┘                  │
-└─────────────────────────────────────────────────────────────────┘
-                              ▲
-                              │
-┌─────────────────────────────┴─────────────────────────────┐
-│                    GitHub Actions                          │
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐       │
-│  │    Build    │→ │    Scan     │→ │   Deploy    │       │
-│  │   (Docker)  │  │  (Trivy)    │  │    (EKS)    │       │
-│  └─────────────┘  └─────────────┘  └─────────────┘       │
-└───────────────────────────────────────────────────────────┘
-Features
-✅ Automated CI/CD pipeline with GitHub Actions
+> A Terraform-managed Amazon EKS cluster with automated deployment, horizontal pod autoscaling based on CPU usage, and complete observability through Prometheus and Grafana dashboards.
 
-✅ Docker image build and push to Amazon ECR
+## Overview
 
-✅ Security scanning with Trivy on every build
+This project implements a production-ready Kubernetes cluster on Amazon EKS with automated CI/CD, horizontal pod autoscaling, and full observability.
 
-✅ Automatic deployment to EKS on every push to main
+The pipeline builds Docker images, scans for vulnerabilities with Trivy, pushes to Amazon ECR, and deploys to EKS on every push to main. The Horizontal Pod Autoscaler scales pods based on CPU usage, while Prometheus and Grafana provide real-time metrics and dashboards.
 
-✅ Horizontal Pod Autoscaler (HPA) based on CPU usage (50% target)
+## Why this project
 
-✅ Multiple replicas for high availability
+Modern cloud applications require automated deployment, elastic scaling, and complete observability.
 
-✅ Public LoadBalancer for application access
+This project demonstrates:
 
-✅ Metrics Server for real-time resource metrics
+- Automated CI/CD with GitHub Actions.
+- Docker image builds and Amazon ECR integration.
+- Security scanning with Trivy.
+- Kubernetes deployments with multiple replicas.
+- Horizontal Pod Autoscaler based on CPU metrics.
+- Prometheus and Grafana for observability.
+- Terraform-managed EKS infrastructure.
+- LoadBalancer service for public access.
 
-✅ Prometheus + Grafana for complete observability
+## Architecture
 
-✅ Infrastructure as Code with Terraform
+The pipeline automates build, scan, and deploy workflows with separate monitoring namespace for observability.
 
-Tech Stack
-Category	Technologies
-Cloud Provider	AWS (EKS, ECR, IAM, VPC)
-Orchestration	Kubernetes, Helm
-Containers	Docker
-CI/CD	GitHub Actions
-Infrastructure	Terraform
-Monitoring	Prometheus, Grafana, Metrics Server
-Security	Trivy (vulnerability scanning)
-Application	Python (Flask)
-Getting Started
-Prerequisites
-AWS CLI configured with credentials
+![Kubernetes EKS Autoscaling and Observability architecture](docs/architecture.png)
 
-kubectl installed and configured
+## Features
 
-Helm 3.x installed
+- Automated CI/CD pipeline with GitHub Actions.
+- Docker image build and push to Amazon ECR.
+- Security scanning with Trivy on every build.
+- Automatic deployment to EKS on every push to main.
+- Horizontal Pod Autoscaler based on CPU usage (50% target).
+- Multiple replicas for high availability.
+- Public LoadBalancer for application access.
+- Metrics Server for real-time resource metrics.
+- Prometheus and Grafana for complete observability.
+- Terraform-managed infrastructure.
 
-Terraform 1.x installed
+## Tech Stack
 
-Docker installed (optional for local testing)
+| Component | Purpose |
+|---|---|
+| Amazon EKS | Managed Kubernetes control plane |
+| Amazon ECR | Docker image registry |
+| Kubernetes | Container orchestration |
+| Helm | Kubernetes package manager |
+| GitHub Actions | CI/CD automation |
+| Terraform | Infrastructure as Code |
+| Prometheus | Metrics collection |
+| Grafana | Visualization and dashboards |
+| Trivy | Container security scanning |
+| Python Flask | Sample application |
 
-Repository Structure
-text
-eks-autoscaling-observability/
-├── .github/
-│   └── workflows/
-│       └── ci-cd.yml              # CI/CD pipeline
-├── app/
-│   ├── Dockerfile                 # Application Docker image
-│   ├── app.py                     # Python Flask application
-│   └── requirements.txt           # Python dependencies
-├── k8s/
-│   ├── deployment.yaml            # Kubernetes Deployment
-│   ├── service.yaml               # LoadBalancer Service
-│   └── hpa.yaml                   # Horizontal Pod Autoscaler
-├── terraform/
-│   ├── main.tf                    # EKS Cluster + Node Group
-│   ├── variables.tf               # Terraform variables
-│   ├── outputs.tf                 # Cluster outputs
-│   └── ecr.tf                     # ECR Repository
-├── helm/
-│   └── values.yaml                # Custom Helm values
-├── docs/
-│   └── images/
-│       └── architecture.png       # Architecture diagram
-├── README.md                      # This file
-└── .gitignore
-Deployment
-1. Clone the repository
-bash
-git clone https://github.com/<your-username>/eks-autoscaling-observability.git
+## Security
+
+- Docker images scanned with Trivy on every build.
+- IAM roles with least privilege permissions.
+- Security groups restrict access to required ports.
+- No long-lived AWS credentials in source code.
+- Terraform state stored securely outside version control.
+- LoadBalancer configured with minimal inbound rules.
+
+## Requirements
+
+- Python 3.11+
+- Terraform 1.5+
+- kubectl 1.28+
+- Helm 3.x
+- AWS CLI
+- Docker (optional for local testing)
+- An AWS account for deployment
+
+## Installation
+
+```bash
+git clone https://github.com/tatan461/eks-autoscaling-observability.git
 cd eks-autoscaling-observability
-2. Deploy infrastructure with Terraform
-bash
+```
+
+## Deployment
+
+Terraform configuration is located in `terraform/`.
+
+Create the local variables file:
+
+```bash
 cd terraform
+cp terraform.tfvars.example terraform.tfvars
+```
 
-# Initialize Terraform
+Initialize, validate, plan, and deploy:
+
+```bash
 terraform init
-
-# Plan deployment
+terraform fmt -check
+terraform validate
 terraform plan -out=tfplan
-
-# Apply infrastructure (EKS + ECR)
 terraform apply tfplan
-Important outputs:
+```
 
-eks_cluster_name - EKS cluster name
+Review the plan before applying it.
 
-ecr_repository_url - ECR repository URL
+Configure kubectl:
 
-configure_kubectl - Command to configure kubectl
-
-3. Configure kubectl
-bash
-# Run the command from Terraform output
+```bash
 aws eks update-kubeconfig --region <region> --name <cluster-name>
-
-# Verify connection
 kubectl get nodes
-4. Deploy the application
-bash
-# Navigate to app directory
-cd ../app
+```
 
-# Build and push Docker image
+Deploy the application:
+
+```bash
+cd ../app
 docker build -t <ecr-url>:latest .
 docker push <ecr-url>:latest
-
-# Apply Kubernetes manifests
 kubectl apply -f ../k8s/
-
-# Verify deployment
 kubectl get pods
 kubectl get svc
 kubectl get hpa
-5. Install Prometheus + Grafana
-bash
-# Add Prometheus repository
+```
+
+Install Prometheus and Grafana:
+
+```bash
 helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
 helm repo update
 
-# Install monitoring stack
 helm install monitoring prometheus-community/kube-prometheus-stack \
   --namespace monitoring \
   --create-namespace \
   --set grafana.service.type=LoadBalancer
 
-# Verify installation
 kubectl get pods -n monitoring
-6. Access Grafana
-bash
-# Get Grafana LoadBalancer URL
+```
+
+Access Grafana:
+
+```bash
 kubectl get svc -n monitoring monitoring-grafana \
   -o jsonpath='{.status.loadBalancer.ingress[0].hostname}'
 
 # Or use port-forward
 kubectl port-forward svc/monitoring-grafana -n monitoring 8080:80
-Credentials:
+```
 
-Username: admin
+**Credentials:**
+- **Username:** `admin`
+- **Password:** `prom-operator`
 
-Password: prom-operator
+Never commit:
 
-Monitoring & Observability
-Useful Commands
-bash
-# Check cluster status
+```text
+terraform.tfvars
+*.tfstate
+*.tfstate.*
+.env
+AWS credentials
+kubeconfig
+```
+
+## Usage
+
+Inspect cluster status:
+
+```bash
 kubectl get pods -A
 kubectl get svc -A
 kubectl get hpa
+```
 
-# View real-time metrics
+View real-time metrics:
+
+```bash
 kubectl top pods
 kubectl top nodes
+```
 
-# View pod logs
+View pod logs:
+
+```bash
 kubectl logs <pod-name>
 kubectl logs -f <pod-name>
-Grafana Dashboards
-Once inside Grafana, explore these pre-configured dashboards:
+```
 
-Kubernetes / Compute Resources / Cluster - Cluster overview
+Access Prometheus:
 
-Kubernetes / Compute Resources / Node (Pods) - Per-node metrics
-
-Kubernetes / Compute Resources / Pod - Per-pod metrics
-
-Grafana / Stats - Grafana statistics
-
-Access Prometheus
-bash
+```bash
 kubectl port-forward svc/monitoring-kube-prometheus-prometheus -n monitoring 9090:9090
-URL: http://localhost:9090
+```
 
-Testing Autoscaling
-Generate Load
-bash
-# Install Apache Bench (if not already installed)
+URL: `http://localhost:9090`
+
+## Monitoring
+
+Grafana dashboards available after installation:
+
+- **Kubernetes / Compute Resources / Cluster** - Cluster overview
+- **Kubernetes / Compute Resources / Node (Pods)** - Per-node metrics
+- **Kubernetes / Compute Resources / Pod** - Per-pod metrics
+- **Grafana / Stats** - Grafana statistics
+
+## Testing
+
+Test autoscaling by generating load:
+
+```bash
+# Install Apache Bench
 sudo apt-get install apache2-utils  # Linux
 brew install httpd                  # macOS
 
-# Generate load for 60 seconds
+# Generate load
 ab -n 10000 -c 100 http://<loadbalancer-url>/
-Monitor Scaling
-bash
-# Watch HPA in real-time
-watch kubectl get hpa my-app -n default
+```
 
-# Or monitor pods
+Monitor scaling in real-time:
+
+```bash
+watch kubectl get hpa my-app -n default
 watch kubectl get pods -l app=my-app
-Cleanup
-Remove monitoring stack
-bash
+```
+
+Validate Terraform:
+
+```bash
+cd terraform
+terraform fmt -check
+terraform validate
+```
+
+## Project Structure
+
+```text
+.
+├── .github/
+│   └── workflows/
+│       └── ci-cd.yml
+├── app/
+│   ├── Dockerfile
+│   ├── app.py
+│   └── requirements.txt
+├── k8s/
+│   ├── deployment.yaml
+│   ├── service.yaml
+│   └── hpa.yaml
+├── terraform/
+│   ├── main.tf
+│   ├── variables.tf
+│   ├── outputs.tf
+│   └── ecr.tf
+├── helm/
+│   └── values.yaml
+├── docs/
+│   └── architecture.png
+├── LICENSE
+├── README.md
+└── .gitignore
+```
+
+## Cleanup
+
+Remove monitoring stack:
+
+```bash
 helm uninstall monitoring --namespace monitoring
 kubectl delete namespace monitoring
-Remove application
-bash
+```
+
+Remove application:
+
+```bash
 kubectl delete -f k8s/
-Remove AWS infrastructure
-bash
+```
+
+Remove AWS infrastructure:
+
+```bash
 cd terraform
 terraform destroy
-⚠️ Important: Make sure to delete all resources to avoid unnecessary costs.
+```
 
-Lessons Learned
-EKS is powerful but complex — Kubernetes adds significant operational overhead compared to ECS or serverless. For simple workloads, managed services are often more cost-effective.
+**Important:** Make sure to delete all resources to avoid unnecessary costs.
 
-HPA requires metrics — The Metrics Server must be installed and healthy before HPA can scale based on CPU/memory.
+## Lessons Learned
 
-LoadBalancer security groups — AWS creates security groups automatically, but they may need manual adjustment for external access.
+- EKS is powerful but adds operational overhead compared to managed services. For simple workloads, ECS or serverless may be more cost-effective.
+- HPA requires Metrics Server to be installed and healthy before scaling based on CPU or memory.
+- LoadBalancer security groups are created automatically but may need manual adjustment for external access.
+- The full kube-prometheus-stack is resource-intensive. For small clusters, consider lightweight alternatives or managed solutions like Amazon Managed Service for Prometheus.
+- Always use remote Terraform state (S3 + DynamoDB) for production EKS clusters to prevent state file loss.
 
-Prometheus resource consumption — The full kube-prometheus-stack is resource-intensive. For small clusters, consider lightweight alternatives or managed solutions like Amazon Managed Service for Prometheus.
+## Documentation
 
-Terraform state management — Always use remote state (S3 + DynamoDB) for production EKS clusters to prevent state file loss.
+- [Amazon EKS Best Practices](https://docs.aws.amazon.com/eks/latest/best-practices/introduction.html)
+- [Kubernetes HPA Documentation](https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/)
+- [Prometheus + Grafana Helm Chart](https://github.com/prometheus-community/helm-charts)
 
-License
-This project is licensed under the MIT License. See the LICENSE file for details.
+## Author
 
-<div align="center">
+**Jonathan Angel Gonzalez**  
+Junior Cloud Engineer · AWS Certified Specialist
 
-Found this project helpful? ⭐ Give it a star on GitHub
+[![GitHub](https://img.shields.io/badge/GitHub-tatan461-181717?logo=github&logoColor=white)](https://github.com/tatan461)
+[![LinkedIn](https://img.shields.io/badge/LinkedIn-Jonathan%20Angel%20Gonzalez-0A66C2?logo=linkedin&logoColor=white)](https://www.linkedin.com/in/jonathan-angel-gonzalez-0543b441a/)
 
-Author: Jhon
+## License
 
-
-
-</div>
-
-<p align="center">
-<em>Portfolio project — Junior Cloud Engineer / AWS Solutions Architect Associate + AI Practitioner</em>
-</p>
+This project is licensed under the [MIT License](LICENSE).
